@@ -31,17 +31,17 @@ fn nodeval<'a>(node: &ChildOfElement<'a>) -> io::Result<String> {
         &ChildOfElement::Element(ref x) => x.children(),
         &ChildOfElement::Text(ref x) => return Ok(x.text().to_string()),
         x => {
-            println!("failed to format: {:?}", x);
-            return err("Invalid node provided")
+            return err(format!("Invalid node provided: {:?}", x).as_str())
         }
     };
     let s = nodes.first().and_then(|x| x.text());
-    let s = try!(s.ok_or(errio("Invalid node provided")));
+    let s = try!(s.ok_or(errio(format!("Invalid node provided: {:?}", nodes.first()).as_str())));
     Ok(s.text().to_string())
 }
 
 static WSP_REGEXP: Regex = regex!(r"(?m)^[ \t\n]+$");
 static LSP_REGEXP: Regex = regex!(r"[\n ]\s+");
+static ACRO_REGEXP: Regex = regex!(r"(<pos><abr>.*?</pos>)([a-zA-Zа-яА-ЯёЁłŁóÓńŃśŚćĆźŹżŻęĘąĄ]+)");
 
 fn replace_sps(s: &str, first_br: &mut bool) -> String {
     let mut res: String;
@@ -74,7 +74,7 @@ impl Xdxf {
 
     fn parse_root<'a>(&mut self, doc: Element<'a>) -> io::Result<()> {
         for child in doc.children() {
-            println!("parse_root: {:?}", child);
+            // println!("parse_root: {:?}", child);
             match child {
                 ChildOfElement::Text(_) | ChildOfElement::Comment(_) | ChildOfElement::ProcessingInstruction(_) => (),
                 ChildOfElement::Element(x) => {
@@ -91,7 +91,7 @@ impl Xdxf {
 
     fn format_node<'a>(&self, n: ChildOfElement<'a>, mut title: String, mut first_br: &mut bool) -> (String, String) {
         let mut res = String::new();
-        println!("formatting node (first_br={}): {:?}", first_br, n);
+        // println!("formatting node (first_br={}): {:?}", first_br, n);
         match n {
             ChildOfElement::Text(x) => {
                 res = res + replace_sps(x.text(), &mut first_br).as_str();
@@ -194,16 +194,31 @@ impl Xdxf {
     }
 
     pub fn load_str(data: &str) -> io::Result<Xdxf>{
-        let package = try!(Parser::new().parse(data).or(err("Malformed XML")));
-        let doc = package.as_document().root();
         let mut dict = Xdxf::new();
+        try!(dict.feed_str(data));
+        Ok(dict)
+    }
+
+    pub fn feed_file(&mut self, path: &str) -> io::Result<()> {
+        let mut xml = String::new();
+        {
+            let mut file = BufReader::new(try!(File::open(path)));
+            try!(file.read_to_string(&mut xml));
+        }
+        self.feed_str(xml.as_str())
+    }
+
+    pub fn feed_str(&mut self, data: &str) -> io::Result<()> {
+        let data = ACRO_REGEXP.replace_all(data, "$2$1");
+        let package = try!(Parser::new().parse(data.trim()).or(err("Malformed XML")));
+        let doc = package.as_document().root();
         for child in doc.children() {
             match child {
-                ChildOfRoot::Element(x) if x.name().local_part() == "xdxf" => try!(dict.parse_root(x)),
+                ChildOfRoot::Element(x) if x.name().local_part() == "xdxf" => try!(self.parse_root(x)),
                 _ => (),
             }
         };
-        Ok(dict)
+        Ok(())
     }
 
     pub fn lookup(&self, prefix: &str) -> Vec<(String, String)> {
