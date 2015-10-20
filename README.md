@@ -7,7 +7,7 @@ so it should be considered as an example how such a parser could be implemented.
 
 ## Dependencies
 
-[sxd-document](https://crates.io/crates/sxd-document) XML DOM library
-[radix_trie](https://crates.io/crates/radix_trie) Prefix tree to store dictionary keys
-[regex](https://crates.io/crates/regex) Regular expressions library to format corrupted articles
-[regex_macros](https://crates.io/crates/regex_macros) Macros to build regexes in compile-time
+* [sxd-document](https://crates.io/crates/sxd-document) XML DOM library
+* [radix_trie](https://crates.io/crates/radix_trie) Prefix tree to store dictionary keys
+* [regex](https://crates.io/crates/regex) Regular expressions library to format corrupted articles
+* [regex_macros](https://crates.io/crates/regex_macros) Macros to build regexes in compile-time
